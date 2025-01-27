@@ -13,7 +13,8 @@ public interface ScheduleRepository {
 
     ScheduleResponseDto saveSchedule(Schedule schedule);
     List<ScheduleResponseDto> findAllSchedules(String updateAt, String author);
-    Optional<Schedule> findScheduleById(Long id);
+    Schedule findScheduleByIdOrElseThrow(Long id);
     int updateSchedule(Long id, String title, String contents, String author, String password);
-    int deleteSchedule(Long id, String password);
+    void deleteSchedule(Long id, String password);
+    boolean validPassword(Long id, String password);
 }
