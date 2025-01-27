@@ -11,14 +11,13 @@ public class ScheduleResponseDto {
     private String author;
     private String title;
     private String contents;
-    private String password;
 
-
+    // 요구사항 명시, 보안을 위해 비밀번호 반환 제외
     public ScheduleResponseDto(Schedule schedule) {
         this.id = schedule.getId();
         this.author = schedule.getAuthor();
         this.title = schedule.getTitle();
         this.contents = schedule.getContents();
-        this.password = schedule.getPassword();
     }
+
 }
