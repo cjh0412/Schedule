@@ -25,12 +25,8 @@ repositories {
 
 dependencies {
 
-    // DB
     implementation 'mysql:mysql-connector-java:8.0.28'
-    // JDBC Template
     implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
-
-    // swagger 스프링부트 3.x버전부터 springfox -> springdoc 변경
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.0.4'
 
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
