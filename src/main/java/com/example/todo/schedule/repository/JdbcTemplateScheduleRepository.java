@@ -1,7 +1,7 @@
-package com.example.schedule.repository;
+package com.example.todo.schedule.repository;
 
-import com.example.schedule.dto.ScheduleResponseDto;
-import com.example.schedule.entity.Schedule;
+import com.example.todo.schedule.dto.ScheduleResponseDto;
+import com.example.todo.schedule.entity.Schedule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -33,63 +33,81 @@ public class JdbcTemplateScheduleRepository implements ScheduleRepository{
         insert.withTableName("schedule").usingGeneratedKeyColumns("id");
 
         Map<String, Object> param = new HashMap<>();
-        param.put("author", schedule.getAuthor());
+        param.put("authorId", schedule.getAuthorId());
         param.put("title", schedule.getTitle());
         param.put("contents", schedule.getContents());
         param.put("password", schedule.getPassword());
+        param.put("name", schedule.getName());
         param.put("is_deleted", 0);
 
         Number key = insert.executeAndReturnKey(new MapSqlParameterSource(param));
         return new ScheduleResponseDto(key.longValue()
-                , schedule.getAuthor()
+                , schedule.getAuthorId()
                 , schedule.getTitle()
                 , schedule.getContents()
+                , schedule.getName()
         );
     }
 
     @Override
-    public List<ScheduleResponseDto> findAllSchedules(String updateAt, String author) {
-        StringBuilder sql = new StringBuilder("select * from schedule where is_deleted = 0 ");
+    public List<ScheduleResponseDto> findAllSchedules(String updatedAt, String author, int page, int size) {
+        StringBuilder sql = new StringBuilder("select s.*, a.name from schedule s join author a on s.author_id = a.id where s.is_deleted = 0 ");
         List<Object> params = new ArrayList<>();
 
-        if(updateAt != null){
-            sql.append("and date_format(update_at, '%Y-%m-%d') = ?");
-            params.add(updateAt);
+        if(updatedAt != null){
+            sql.append("and date_format(s.updated_at, '%Y-%m-%d') = ?");
+            params.add(updatedAt);
         }
 
         if (author != null) {
-            sql.append("and author = ? ");
+            sql.append("and a.name = ? ");
             params.add(author);
         }
 
-        sql.append("order by update_at desc");
+        sql.append("order by s.updated_at desc ");
+
+        // 페이징 처리
+        sql.append("limit ? offset ?");
+        params.add(size);
+        params.add(size * (page-1));
         return jdbc.query(sql.toString(), params.toArray(), scheduleRowMapper());
     }
 
     @Override
     public Schedule findScheduleByIdOrElseThrow(Long id) {
-         List<Schedule> result = jdbc.query("select * from schedule where id = ? and is_deleted = 0", scheduleRowMapperV2(), id);
+        String sql = "select s.*, a.name from schedule s join author a on s.author_id = a.id where s.id = ? and s.is_deleted = 0";
+         List<Schedule> result = jdbc.query(sql, scheduleRowMapperV2(), id);
         return result.stream().findAny().orElseThrow(()
                 -> new ResponseStatusException(HttpStatus.NOT_FOUND, "조회된 일정이 존재하지 않습니다."));
     }
 
     @Override
-    public int updateSchedule(Long id, String title, String contents, String author, String password) {
-        int result = jdbc.update("update schedule set title = ? , contents = ? , author = ? where id = ? and password = ? and is_deleted = 0" ,
-                title, contents, author, id, password);
+    public int updateSchedule(Long id, String title, String contents, String password) {
+        String sql = "update schedule set title = ? , contents = ?  where id = ? and password = ? and is_deleted = 0";
+        int result = jdbc.update(sql ,
+                title, contents,  id, password);
         return result;
     }
 
+
     @Override
     public void deleteSchedule(Long id, String password) {
-        jdbc.update("update schedule set  is_Deleted = 1 where id = ? and password = ? and is_deleted = 0" , id, password);
+        String sql  = "update schedule set  is_Deleted = 1 where id = ? and password = ? and is_deleted = 0";
+        jdbc.update(sql , id, password);
     }
 
     @Override
     public boolean validPassword(Long id, String password) {
         String sql = "select count(*) from schedule where id = ? and password = ? and is_deleted = 0";
         Integer count = jdbc.queryForObject(sql, Integer.class, id, password);
-        return (count > 0 ) ? true : false;
+        return count > 0;
+    }
+
+    @Override
+    public int isDeleted(Long id, String password) {
+        String sql = "select is_deleted from schedule where id = ? and password = ? ";
+        Integer queryResult = jdbc.queryForObject(sql, Integer.class, id, password);
+        return queryResult;
     }
 
     private RowMapper<ScheduleResponseDto> scheduleRowMapper(){
@@ -97,9 +115,10 @@ public class JdbcTemplateScheduleRepository implements ScheduleRepository{
             public ScheduleResponseDto mapRow(ResultSet resultSet,  int rowNum) throws SQLException{
                 return new ScheduleResponseDto(
                         resultSet.getLong("id"),
-                        resultSet.getString("author"),
+                        resultSet.getLong("author_Id"),
                         resultSet.getString("title"),
-                        resultSet.getString("contents")
+                        resultSet.getString("contents"),
+                        resultSet.getString("name")
                 );
             }
 
@@ -111,15 +130,14 @@ public class JdbcTemplateScheduleRepository implements ScheduleRepository{
             public Schedule mapRow(ResultSet resultSet,  int rowNum) throws SQLException{
                 return new Schedule(
                         resultSet.getLong("id"),
-                        resultSet.getString("author"),
+                        resultSet.getLong("author_Id"),
                         resultSet.getString("title"),
                         resultSet.getString("contents"),
-                        resultSet.getString("password")
+                        resultSet.getString("password"),
+                        resultSet.getString("name")
                 );
             }
 
         };
     }
-
-
 }
