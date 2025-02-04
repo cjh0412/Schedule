@@ -13,6 +13,7 @@ public class Schedule {
     private String contents;
     private String password;
     private String name;
+    private int isDeleted;
 
     public Schedule(Long authorId, String title, String contents, String password) {
         this.authorId = authorId;
