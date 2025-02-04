@@ -1,5 +1,7 @@
 package com.example.todo.schedule.repository;
 
+import com.example.todo.exception.ErrorCode;
+import com.example.todo.exception.ScheduleException;
 import com.example.todo.schedule.dto.ScheduleResponseDto;
 import com.example.todo.schedule.entity.Schedule;
 import org.slf4j.Logger;
@@ -75,10 +77,16 @@ public class JdbcTemplateScheduleRepository implements ScheduleRepository{
 
     @Override
     public Schedule findScheduleByIdOrElseThrow(Long id) {
-        String sql = "select s.*, a.name from schedule s join author a on s.author_id = a.id where s.id = ? and s.is_deleted = 0";
+        String sql = "select s.*, a.name from schedule s join author a on s.author_id = a.id where s.id = ?";
          List<Schedule> result = jdbc.query(sql, scheduleRowMapperV2(), id);
-        return result.stream().findAny().orElseThrow(()
-                -> new ResponseStatusException(HttpStatus.NOT_FOUND, "조회된 일정이 존재하지 않습니다."));
+        return result.stream().findAny()
+                .map(schedule -> {
+                    if (schedule.getIsDeleted() == 1) {
+                        throw new ScheduleException(ErrorCode.ALREADY_DELETE_DATE);
+                    }
+                    return schedule;
+                })
+                .orElseThrow(() -> new ScheduleException(ErrorCode.NOT_FIND_SCHEDULE));
     }
 
     @Override
@@ -130,11 +138,12 @@ public class JdbcTemplateScheduleRepository implements ScheduleRepository{
             public Schedule mapRow(ResultSet resultSet,  int rowNum) throws SQLException{
                 return new Schedule(
                         resultSet.getLong("id"),
-                        resultSet.getLong("author_Id"),
+                        resultSet.getLong("author_id"),
                         resultSet.getString("title"),
                         resultSet.getString("contents"),
                         resultSet.getString("password"),
-                        resultSet.getString("name")
+                        resultSet.getString("name"),
+                        resultSet.getInt("is_deleted")
                 );
             }
 
